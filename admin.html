@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEXI – Admin Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── CONDITION BADGES ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 5px;
+      font-size: .68rem; font-weight: 700; letter-spacing: .3px;
+      flex-shrink: 0;
+    }
+    .badge.avatar {
+      background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe;
+    }
+    .badge.voice {
+      background: #fce7f3; color: #be185d; border: 1px solid #fbcfe8;
+    }
+    .badge svg { width: 10px; height: 10px; }
+
+    /* ── HEADER ── */
+    header {
+      background: #0f1f3d;
+      color: white;
+      padding: 0 24px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,.4);
+    }
+    .h-left { display: flex; align-items: center; gap: 10px; }
+    .h-logo {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .h-logo svg { width: 15px; height: 15px; }
+    .h-title { font-size: 1rem; font-weight: 700; }
+    .h-admin { background: #dc2626; color: white; font-size: .62rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; letter-spacing: .5px; }
+    .h-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .h-stat {
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.15);
+      color: #cbd5e1; padding: 4px 11px;
+      border-radius: 14px; font-size: .75rem; font-weight: 500;
+    }
+    .h-stat.av { border-color: #3b82f6; color: #93c5fd; }
+    .h-stat.vc { border-color: #ec4899; color: #f9a8d4; }
+
+    /* ── LOGIN OVERLAY ── */
+    #loginOverlay {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #0f1f3d, #1e3a8a);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999;
+    }
+    .login-box {
+      background: white; border-radius: 16px;
+      padding: 36px 32px; width: 360px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.4); text-align: center;
+    }
+    .login-logo {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 14px;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+    }
+    .login-logo svg { width: 26px; height: 26px; }
+    .login-box h2 { font-size: 1.2rem; font-weight: 700; color: #0f1f3d; margin-bottom: 4px; }
+    .login-box p  { font-size: .83rem; color: #64748b; margin-bottom: 24px; }
+    .login-box input {
+      width: 100%; padding: 10px 14px; font-size: .9rem; font-family: inherit;
+      border: 1.5px solid #e2e8f0; border-radius: 8px;
+      margin-bottom: 12px; outline: none; transition: border-color .2s;
+    }
+    .login-box input:focus { border-color: #3b82f6; }
+    .login-box button {
+      width: 100%; padding: 11px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white; border: none; border-radius: 8px;
+      font-size: .9rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: opacity .2s;
+    }
+    .login-box button:hover { opacity: .9; }
+    .login-err { color: #dc2626; font-size: .8rem; margin-top: 10px; display: none; }
+
+    /* ── LEGEND BAR ── */
+    .legend {
+      background: white;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 7px 20px;
+      display: flex; align-items: center; gap: 16px;
+      flex-shrink: 0; font-size: .78rem; color: #64748b;
+    }
+    .legend span { font-weight: 600; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      flex: 1; overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    aside {
+      background: white;
+      border-right: 1px solid #e2e8f0;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .side-top {
+      padding: 11px; border-bottom: 1px solid #e2e8f0;
+      flex-shrink: 0; display: flex; flex-direction: column; gap: 8px;
+    }
+    .side-row { display: flex; gap: 6px; }
+
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 7px 11px; font-size: .77rem; font-weight: 600;
+      font-family: inherit; border-radius: 7px; cursor: pointer;
+      transition: all .15s; border: 1.5px solid #e2e8f0;
+      background: white; color: #475569;
+    }
+    .btn:hover { border-color: #3b82f6; color: #2563eb; background: #eff6ff; }
+    .btn svg { width: 11px; height: 11px; }
+    .btn.dark { background: #0f1f3d; color: white; border-color: #0f1f3d; flex: 1; }
+    .btn.dark:hover { background: #1e3a8a; }
+    .btn.full { flex: 1; }
+
+    .filter-row { display: flex; gap: 6px; }
+    .search, .fsel {
+      font-size: .81rem; font-family: inherit;
+      border: 1.5px solid #e2e8f0; border-radius: 7px;
+      background: #f8fafc; color: #1e293b; outline: none;
+      padding: 7px 9px; transition: border-color .2s;
+    }
+    .search { flex: 1; }
+    .fsel { width: 100px; }
+    .search:focus, .fsel:focus { border-color: #3b82f6; background: white; }
+
+    /* Condition tab filters */
+    .cond-tabs { display: flex; gap: 5px; }
+    .ctab {
+      flex: 1; padding: 6px 8px; font-size: .75rem; font-weight: 700;
+      font-family: inherit; border-radius: 6px; cursor: pointer;
+      border: 1.5px solid #e2e8f0; background: white; color: #64748b;
+      transition: all .15s; text-align: center;
+    }
+    .ctab:hover { border-color: #94a3b8; }
+    .ctab.all.on  { background: #f1f5f9; border-color: #94a3b8; color: #1e293b; }
+    .ctab.av.on   { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
+    .ctab.vc.on   { background: #fce7f3; border-color: #ec4899; color: #be185d; }
+
+    /* Session list */
+    .sess-list { flex: 1; overflow-y: auto; padding: 7px; }
+
+    .sess {
+      padding: 9px 11px; border-radius: 8px; cursor: pointer;
+      margin-bottom: 4px; border: 1.5px solid transparent;
+      transition: all .15s; background: #f8fafc;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .sess:hover { border-color: #bfdbfe; background: #eff6ff; }
+    .sess.active { background: #eff6ff; border-color: #3b82f6; }
+
+    /* Left stripe by condition */
+    .sess { border-left: 3px solid transparent; }
+    .sess.cond-A { border-left-color: #3b82f6; }
+    .sess.cond-C { border-left-color: #ec4899; }
+
+    .sess-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .sess-user { font-size: .8rem; font-weight: 700; color: #0f1f3d; }
+    .sess-date { font-size: .7rem; color: #94a3b8; }
+    .sess-preview { font-size: .79rem; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sess-count { font-size: .69rem; color: #94a3b8; }
+
+    /* ── MAIN ── */
+    main { display: flex; flex-direction: column; overflow: hidden; }
+
+    .m-head {
+      padding: 11px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      background: white;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; gap: 12px;
+    }
+    .m-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .m-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .m-title { font-size: .93rem; font-weight: 700; color: #0f1f3d; }
+    .m-sub   { font-size: .73rem; color: #64748b; }
+
+    .dl-row { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-dl {
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 12px; font-size: .76rem; font-weight: 600;
+      font-family: inherit; border-radius: 7px; cursor: pointer;
+      transition: all .15s; border: 1.5px solid;
+    }
+    .btn-dl.txt  { background: white; color: #475569; border-color: #e2e8f0; }
+    .btn-dl.txt:hover  { border-color: #3b82f6; color: #2563eb; }
+    .btn-dl.csv  { background: #059669; color: white; border-color: #059669; }
+    .btn-dl.csv:hover  { background: #047857; }
+    .btn-dl.json { background: #0f1f3d; color: white; border-color: #0f1f3d; }
+    .btn-dl.json:hover { background: #1e3a8a; }
+    .btn-dl svg { width: 12px; height: 12px; }
+
+    /* ── FEED ── */
+    .feed {
+      flex: 1; overflow-y: auto;
+      padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .msg { display: flex; gap: 9px; align-items: flex-start; animation: up .2s ease both; }
+    @keyframes up { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+    .msg.user { flex-direction: row-reverse; }
+
+    .av {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .68rem; font-weight: 700; margin-top: 2px;
+    }
+    .av.u { background: linear-gradient(135deg, #60a5fa, #2563eb); color: white; }
+    .av.a { background: linear-gradient(135deg, #34d399, #059669); color: white; }
+
+    .bubble {
+      max-width: 68%; padding: 9px 13px; border-radius: 11px;
+      line-height: 1.58; font-size: .87rem;
+    }
+    .msg.user .bubble { background: #eff6ff; border: 1.5px solid #93c5fd; border-top-right-radius: 3px; }
+    .msg.ai   .bubble { background: #f0fdf4; border: 1.5px solid #86efac; border-top-left-radius:  3px; }
+    .msg.user .bubble.int { background: #fff7ed; border-color: #fdba74; }
+
+    .meta { font-size: .67rem; color: #94a3b8; margin-top: 3px; display: flex; align-items: center; gap: 4px; }
+    .msg.user .meta { justify-content: flex-end; }
+    .int-tag { font-size: .62rem; background: #fed7aa; color: #c2410c; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
+
+    /* ── STATES ── */
+    .empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 10px;
+      height: 100%; color: #94a3b8; text-align: center; padding: 32px;
+    }
+    .empty-icon { width: 44px; height: 44px; background: #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .empty-icon svg { width: 20px; height: 20px; }
+    .empty h3 { font-size: .92rem; font-weight: 700; color: #475569; }
+    .empty p  { font-size: .8rem; max-width: 220px; line-height: 1.5; }
+    .spin { width: 30px; height: 30px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+      aside { display: none; }
+      .h-right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- =====================================================
+     ⚙️  FILL IN YOUR CREDENTIALS BEFORE PUSHING
+     ===================================================== -->
+<script>
+  const SUPABASE_URL   = 'https://ukkgsugbmyzrqcpmmckk.supabase.co';
+  const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVra2dzdWdibXl6cnFjcG1tY2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNDIxNDcsImV4cCI6MjA3OTcxODE0N30.HnfIsvP7ZtXMVRIz9x84pzHySx7JMs0vgQS3dA96cpA';
+  const ADMIN_PASSWORD = '1234';
+</script>
+<!-- ===================================================== -->
+
+<!-- LOGIN -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </div>
+    <h2>LEXI Admin Panel</h2>
+    <p>Enter the admin password to continue</p>
+    <input type="password" id="adminPwd" placeholder="Admin password"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="loginErr">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="h-left">
+    <div class="h-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </div>
+    <span class="h-title">LEXI Admin</span>
+    <span class="h-admin">ADMIN</span>
+  </div>
+  <div class="h-right">
+    <span class="h-stat"    id="statTotal">— sessions</span>
+    <span class="h-stat"    id="statUsers">— users</span>
+    <span class="h-stat av" id="statAv">💻 Avatar: —</span>
+    <span class="h-stat vc" id="statVc">🎙️ Voice: —</span>
+  </div>
+</header>
+
+<!-- LEGEND -->
+<div class="legend">
+  <span>Condition:</span>
+  <div class="legend-item">
+    <span class="badge avatar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      A — Avatar
+    </span>
+    Conversation with 3D Avatar
+  </div>
+  <div class="legend-item">
+    <span class="badge voice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+      C — Voice Agent
+    </span>
+    Conversation with Voice-only Agent
+  </div>
+</div>
+
+<!-- GRID -->
+<div class="grid">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="side-top">
+      <div class="side-row">
+        <button class="btn full" id="refreshBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+        <button class="btn dark" id="dlAllBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export All
+        </button>
+      </div>
+
+      <!-- Condition tabs -->
+      <div class="cond-tabs">
+        <button class="ctab all on" data-cond="">All</button>
+        <button class="ctab av"     data-cond="A">
+          💻 Avatar (A)
+        </button>
+        <button class="ctab vc"     data-cond="C">
+          🎙️ Voice (C)
+        </button>
+      </div>
+
+      <div class="filter-row">
+        <input class="search" id="searchInput" type="text" placeholder="🔍 Search…">
+        <select class="fsel" id="userFilter"><option value="">All users</option></select>
+      </div>
+    </div>
+
+    <div class="sess-list" id="sessList">
+      <div class="empty" style="height:auto;padding:24px 0"><div class="spin"></div></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="m-head">
+      <div class="m-left">
+        <div id="mBadge"></div>
+        <div class="m-meta">
+          <div class="m-title" id="mTitle">Select a session</div>
+          <div class="m-sub"   id="mSub">All conversations are listed on the left</div>
+        </div>
+      </div>
+      <div class="dl-row" id="dlRow" style="display:none">
+        <button class="btn-dl txt"  id="dlTxt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          .TXT
+        </button>
+        <button class="btn-dl csv"  id="dlCsv">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          .CSV
+        </button>
+        <button class="btn-dl json" id="dlJson">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          .JSON
+        </button>
+      </div>
+    </div>
+
+    <div class="feed" id="feed">
+      <div class="empty">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <h3>No session selected</h3>
+        <p>Pick any session from the sidebar to view the full conversation.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ── Login ──
+  function doLogin() {
+    if (document.getElementById('adminPwd').value === ADMIN_PASSWORD) {
+      document.getElementById('loginOverlay').style.display = 'none';
+      init();
+    } else {
+      document.getElementById('loginErr').style.display = 'block';
+    }
+  }
+
+  // ── Condition helpers ──
+  function condLabel(c) {
+    if (c === 'C') return 'Voice Agent';
+    return 'Avatar'; // default A
+  }
+  function condClass(c) {
+    return c === 'C' ? 'voice' : 'avatar';
+  }
+  function condBadgeHTML(c) {
+    if (c === 'C') return `<span class="badge voice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+      C — Voice Agent</span>`;
+    return `<span class="badge avatar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      A — Avatar</span>`;
+  }
+
+  // ── Supabase ──
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  let all = [], filtered = [], active = null, condFilter = '';
+
+  // ── Formatters ──
+  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+  const fmtFull = iso => iso ? fmtDate(iso)+' '+new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
+  const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  const escCsv = s => `"${String(s||'').replace(/"/g,'""').replace(/\n/g,' ')}"`;
+
+  async function init() { await load(); }
+
+  // ── Load all ──
+  async function load() {
+    const list = document.getElementById('sessList');
+    list.innerHTML = '<div class="empty" style="height:auto;padding:24px 0"><div class="spin"></div></div>';
+
+    const { data, error } = await db
+      .from('conversations')
+      .select('*')
+      .order('timestamp', { ascending: false });
+
+    if (error) {
+      list.innerHTML = `<div class="empty" style="height:auto;padding:16px;color:#dc2626;font-size:.8rem">${esc(error.message)}</div>`;
+      return;
+    }
+
+    all = data || [];
+
+    // Stats
+    const users  = [...new Set(all.map(s => s.username))];
+    const avCount = all.filter(s => s.condition !== 'C').length;
+    const vcCount = all.filter(s => s.condition === 'C').length;
+    document.getElementById('statTotal').textContent = `${all.length} sessions`;
+    document.getElementById('statUsers').textContent = `${users.length} users`;
+	document.getElementById('statVc').textContent    = `🎙️ Voice: ${vcCount}`;
+    document.getElementById('statAv').textContent    = `💻 Avatar: ${avCount}`;
+    
+
+    // User filter dropdown
+    const sel = document.getElementById('userFilter');
+    sel.innerHTML = '<option value="">All users</option>';
+    users.sort().forEach(u => {
+      const o = document.createElement('option');
+      o.value = u; o.textContent = u;
+      sel.appendChild(o);
+    });
+
+    applyFilter();
+  }
+
+  // ── Filter ──
+  function applyFilter() {
+    const q    = document.getElementById('searchInput').value.toLowerCase();
+    const user = document.getElementById('userFilter').value;
+    filtered = all.filter(s => {
+      const matchCond = !condFilter || s.condition === condFilter;
+      const matchUser = !user || s.username === user;
+      const matchQ    = !q ||
+        (s.username||'').toLowerCase().includes(q) ||
+        (s.conversation_id||'').toLowerCase().includes(q) ||
+        (s.messages||[]).some(m => (m.content||'').toLowerCase().includes(q));
+      return matchCond && matchUser && matchQ;
+    });
+    renderList(filtered);
+  }
+
+  // ── Sidebar ──
+  function renderList(sessions) {
+    const list = document.getElementById('sessList');
+    if (!sessions.length) {
+      list.innerHTML = `<div class="empty" style="height:auto;padding:24px 8px">
+        <h3>No results</h3><p>Try a different filter.</p></div>`;
+      return;
+    }
+    list.innerHTML = '';
+    sessions.forEach(s => {
+      const preview = s.messages?.[0]?.content?.slice(0,50) || '—';
+      const el = document.createElement('div');
+      el.className = `sess cond-${s.condition||'A'}` + (active?.conversation_id === s.conversation_id ? ' active' : '');
+      el.innerHTML = `
+        <div class="sess-top">
+          <span class="sess-user">👤 ${esc(s.username)}</span>
+          ${condBadgeHTML(s.condition)}
+        </div>
+        <div class="sess-date">${fmtDate(s.timestamp)}</div>
+        <div class="sess-preview">${esc(preview)}…</div>
+        <div class="sess-count">💬 ${s.total_messages} messages</div>`;
+      el.onclick = () => openSess(s, el);
+      list.appendChild(el);
+    });
+  }
+
+  // ── Open session ──
+  function openSess(s, el) {
+    active = s;
+    document.querySelectorAll('.sess').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+
+    document.getElementById('mBadge').innerHTML = condBadgeHTML(s.condition);
+    document.getElementById('mTitle').textContent = `${s.username} — ${fmtDate(s.timestamp)}`;
+    document.getElementById('mSub').textContent   = `${s.total_messages} messages · ${condLabel(s.condition)} · ID: ${s.conversation_id}`;
+    document.getElementById('dlRow').style.display = 'flex';
+
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '';
+
+    if (!s.messages?.length) {
+      feed.innerHTML = '<div class="empty"><h3>Empty session</h3><p>No messages recorded.</p></div>';
+      return;
+    }
+
+    s.messages.forEach((m, i) => {
+      const isUser = m.role === 'user';
+      const div = document.createElement('div');
+      div.className = `msg ${isUser ? 'user' : 'ai'}`;
+      div.style.animationDelay = `${i * 0.025}s`;
+      const label = isUser ? (s.username?.[0]?.toUpperCase()||'U') : 'AI';
+      div.innerHTML = `
+        <div class="av ${isUser ? 'u' : 'a'}">${label}</div>
+        <div>
+          <div class="bubble ${m.interrupted ? 'int' : ''}">${esc(m.content)}</div>
+          <div class="meta">
+            ${fmtFull(m.timestamp)}
+            ${m.interrupted ? '<span class="int-tag">interrupted</span>' : ''}
+          </div>
+        </div>`;
+      feed.appendChild(div);
+    });
+    feed.scrollTop = 0;
+  }
+
+  // ── Condition tab clicks ──
+  document.querySelectorAll('.ctab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ctab').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      condFilter = btn.dataset.cond;
+      applyFilter();
+    });
+  });
+
+  document.getElementById('searchInput').oninput = applyFilter;
+  document.getElementById('userFilter').onchange  = applyFilter;
+  document.getElementById('refreshBtn').onclick   = load;
+
+  // ── Downloads ──
+  function trigger(content, name, mime) {
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([content], {type: mime})),
+      download: name
+    });
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  document.getElementById('dlTxt').onclick = () => {
+    if (!active) return;
+    const type = condLabel(active.condition);
+    let out  = `LEXI Conversation Export\n`;
+    out += `Type     : ${type} (Condition ${active.condition||'A'})\n`;
+    out += `User     : ${active.username}\n`;
+    out += `Date     : ${fmtFull(active.timestamp)}\n`;
+    out += `Session  : ${active.conversation_id}\n`;
+    out += `Messages : ${active.total_messages}\n`;
+    out += `${'─'.repeat(55)}\n\n`;
+    (active.messages||[]).forEach(m => {
+      const label = m.role === 'user' ? active.username : `LEXI (${type})`;
+      out += `[${label}] ${fmtFull(m.timestamp)}${m.interrupted?' ⚠ interrupted':''}\n${m.content}\n\n`;
+    });
+    trigger(out, `lexi-${active.condition||'A'}-${active.username}-${active.conversation_id}.txt`, 'text/plain');
+  };
+
+  document.getElementById('dlCsv').onclick = () => {
+    if (!active) return;
+    let csv = `condition,condition_label,username,session_id,sequence,role,content,timestamp,interrupted\n`;
+    (active.messages||[]).forEach((m, i) => {
+      csv += `${active.condition||'A'},${condLabel(active.condition)},${escCsv(active.username)},${escCsv(active.conversation_id)},${m.sequence??i},${m.role},${escCsv(m.content)},${m.timestamp||''},${m.interrupted||false}\n`;
+    });
+    trigger(csv, `lexi-${active.condition||'A'}-${active.username}-${active.conversation_id}.csv`, 'text/csv');
+  };
+
+  document.getElementById('dlJson').onclick = () => {
+    if (!active) return;
+    trigger(JSON.stringify(active, null, 2), `lexi-${active.condition||'A'}-${active.username}-${active.conversation_id}.json`, 'application/json');
+  };
+
+  document.getElementById('dlAllBtn').onclick = () => {
+    if (!all.length) return;
+    const payload = {
+      exported_at: new Date().toISOString(),
+      total_sessions: all.length,
+      avatar_sessions: all.filter(s => s.condition !== 'C').length,
+      voice_sessions:  all.filter(s => s.condition === 'C').length,
+      users: [...new Set(all.map(s => s.username))],
+      conversations: all
+    };
+    trigger(JSON.stringify(payload, null, 2), `lexi-admin-export-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+  };
+</script>
+</body>
+</html>
